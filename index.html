@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宝贝的英文单词复习</title>
+    <!-- Add SheetJS library to parse XLSX files -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: Arial, 微软雅黑;
@@ -87,7 +89,7 @@
 <body>
     <div class="container">
         <h1>🌟 宝贝的英文单词复习 🌟</h1>
-        <div class="debug-info" id="debugInfo">正在加载单词表...</div>
+        <div class="debug-info" id="debugInfo">正在加载单词表 (XLSX)...</div>
         <div class="date-info" id="dateInfo"></div>
         <div id="wordContent">
             <div class="no-word">请稍候，正在加载数据...</div>
@@ -101,167 +103,135 @@
         const speechRate = 0.8;
         const pauseTime = 2000;
 
-        // ✅ 已填入你当前有效的 CSV 导出链接
-        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1XGzNS8syHGCw-s4YEwsQImhBNbKHXhet5AGGA9hHmC0/export?format=csv";
+        // ✅ Read XLSX file from GitHub root (words.xlsx)
+        const XLSX_URL = "https://ximonlam.github.io/word-review/words.xlsx";
 
-        // ✨ 智能识别所有日期格式
+        // Smart date format conversion
         function smartConvertDate(dateStr) {
             if (!dateStr) return "";
-            
-            // 先统一替换分隔符：- → /
             dateStr = dateStr.replace(/-/g, "/");
-            const parts = dateStr.split("/").filter(p => p); // 过滤空值
-            
+            const parts = dateStr.split("/").filter(p => p);
             if (parts.length !== 3) return dateStr;
 
-            // 识别格式：
-            // 情况1：年/月/日 → 2026/3/13
             if (parts[0].length === 4) {
-                const year = parts[0];
-                const month = parts[1].padStart(2, "0");
-                const day = parts[2].padStart(2, "0");
-                return `${year}-${month}-${day}`;
+                return `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+            } else if (parts[2].length === 4) {
+                return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
             }
-            // 情况2：日/月/年 → 13/3/2026
-            else if (parts[2].length === 4) {
-                const day = parts[0].padStart(2, "0");
-                const month = parts[1].padStart(2, "0");
-                const year = parts[2];
-                return `${year}-${month}-${day}`;
-            }
-            // 其他情况直接返回
             return dateStr;
         }
 
-        // 加载 Google Sheets 数据
-        async function loadGoogleSheetData() {
+        // Load and parse XLSX file from GitHub
+        async function loadGitHubXLSX() {
             try {
-                const response = await fetch(GOOGLE_SHEET_CSV_URL);
-                if (!response.ok) throw new Error(`请求失败：${response.status}`);
+                const response = await fetch(XLSX_URL);
+                if (!response.ok) throw new Error(`Request failed: ${response.status}`);
                 
-                const csvText = await response.text();
+                // Read XLSX as binary data
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: "array" });
                 
-                // 解析 CSV（处理换行和空行）
-                const lines = csvText.split("\n").filter(line => line.trim());
-                if (lines.length === 0) throw new Error("CSV 内容为空");
+                // Get the first worksheet (you can change to specific sheet name e.g., "Sheet1")
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
                 
-                const headers = lines[0].split(",").map(h => h.trim());
-                const data = lines.slice(1).map(line => {
-                    const values = line.split(",").map(v => v.trim());
-                    let obj = {};
-                    headers.forEach((h, i) => obj[h] = values[i] || "");
-                    return obj;
-                }).filter(item => item.word.trim()); // 过滤空单词行
+                // Convert worksheet to JSON (same structure as CSV)
+                const data = XLSX.utils.sheet_to_json(worksheet);
+                if (data.length === 0) throw new Error("XLSX content is empty");
 
-                // 转换数据格式
+                // Format data (match CSV structure)
                 wordDatabase = data.map(item => ({
-                    word: item.word.trim(),
-                    meaning: item.meaning.trim(),
-                    date: smartConvertDate(item.date)
-                }));
+                    word: (item.word || "").toString().trim(),
+                    meaning: (item.meaning || "").toString().trim(),
+                    date: smartConvertDate((item.date || "").toString().trim())
+                })).filter(item => item.word);
 
-                document.getElementById('debugInfo').textContent = `✅ 加载到 ${wordDatabase.length} 行单词`;
+                document.getElementById('debugInfo').textContent = `✅ Loaded ${wordDatabase.length} words`;
                 init();
             } catch (err) {
-                document.getElementById('debugInfo').textContent = `❌ 加载失败：${err.message}`;
-                console.error("加载详情：", err);
+                document.getElementById('debugInfo').textContent = `❌ Load failed: ${err.message}`;
+                console.error("Load details:", err);
             }
         }
 
-        // 初始化：匹配本地日期
+        // Initialize: Match today's date
         function init() {
-            // 获取本地时区的当天日期
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, "0");
             const day = String(now.getDate()).padStart(2, "0");
             const systemToday = `${year}-${month}-${day}`;
 
-            document.getElementById('dateInfo').textContent = `📅 今天：${systemToday}`;
-            
-            // 筛选今日单词
+            document.getElementById('dateInfo').textContent = `📅 Today: ${systemToday}`;
             todayWords = wordDatabase.filter(word => word.date === systemToday);
-            document.getElementById('debugInfo').textContent += ` | 匹配到 ${todayWords.length} 个今日单词`;
+            document.getElementById('debugInfo').textContent += ` | Matched ${todayWords.length} words for today`;
 
             if (todayWords.length === 0) {
-                document.getElementById('wordContent').innerHTML = `<div class="no-word">🎉 今天没有需要复习的单词！</div>`;
+                document.getElementById('wordContent').innerHTML = `<div class="no-word">🎉 No words to review today!</div>`;
                 return;
             }
-            
             currentIndex = 0;
             showWord(currentIndex);
         }
 
-        // 朗读单词（带停顿）
+        // Read word aloud
         function speakWord(word, count) {
             const readCountEl = document.querySelector('.read-count');
-            if (readCountEl) readCountEl.textContent = `正在读第 ${count} 遍...`;
+            if (readCountEl) readCountEl.textContent = `Reading ${count}th time...`;
             
             setTimeout(() => {
-                // 兼容 iOS 语音合成
                 if (!window.speechSynthesis) {
-                    if (readCountEl) readCountEl.textContent = "⚠️ 浏览器不支持发音";
+                    if (readCountEl) readCountEl.textContent = "⚠️ Browser does not support speech";
                     return;
                 }
-                
                 const utterance = new SpeechSynthesisUtterance(word);
-                utterance.lang = 'en-US'; // 美式发音
-                utterance.rate = speechRate; // 语速适配小朋友
+                utterance.lang = 'en-US';
+                utterance.rate = speechRate;
                 window.speechSynthesis.speak(utterance);
-                
                 utterance.onend = () => {
-                    if (readCountEl) readCountEl.textContent = `第 ${count} 遍读完啦 ✨`;
+                    if (readCountEl) readCountEl.textContent = `Finished ${count}th time ✨`;
                 };
             }, pauseTime);
         }
 
-        // 连续读3遍单词
         function readWordThreeTimes(word) {
             const readCountEl = document.querySelector('.read-count');
             if (readCountEl) readCountEl.textContent = '';
-            
             speakWord(word, 1);
             setTimeout(() => speakWord(word, 2), pauseTime + 2000);
             setTimeout(() => speakWord(word, 3), pauseTime * 2 + 4000);
         }
 
-        // 显示当前单词（默认隐藏英文）
         function showWord(index) {
             if (index >= todayWords.length) {
-                document.getElementById('wordContent').innerHTML = `<div class="no-word">🎊 恭喜！今天单词复习完成！</div>`;
+                document.getElementById('wordContent').innerHTML = `<div class="no-word">🎊 Congratulations! All words reviewed!</div>`;
                 return;
             }
-            
             const word = todayWords[index];
             document.getElementById('wordContent').innerHTML = `
                 <div class="word-card">
-                    <div class="meaning">💡 中文：${word.meaning}</div>
+                    <div class="meaning">💡 Chinese: ${word.meaning}</div>
                     <div class="word" id="currentWord">${word.word.toUpperCase()}</div>
                     <div class="read-count"></div>
-                    <button class="show-word-btn" onclick="showCurrentWord()">👀 显示单词</button>
-                    <button class="repeat-btn" onclick="readWordThreeTimes('${word.word}')">🔄 再读一遍</button>
-                    <button class="next-btn" onclick="nextWord()">➡️ 下一个</button>
+                    <button class="show-word-btn" onclick="showCurrentWord()">👀 Show Word</button>
+                    <button class="repeat-btn" onclick="readWordThreeTimes('${word.word}')">🔄 Read Again</button>
+                    <button class="next-btn" onclick="nextWord()">➡️ Next Word</button>
                 </div>
             `;
-            
-            // 自动朗读3遍
             readWordThreeTimes(word.word);
         }
 
-        // 显示隐藏的英文单词
         function showCurrentWord() {
-            const wordEl = document.getElementById('currentWord');
-            if (wordEl) wordEl.style.display = 'block';
+            document.getElementById('currentWord').style.display = 'block';
         }
 
-        // 下一个单词
         function nextWord() {
             currentIndex++;
             showWord(currentIndex);
         }
 
-        // 页面加载时自动读取 Google Sheets
-        window.onload = loadGoogleSheetData;
+        // Load XLSX when page loads
+        window.onload = loadGitHubXLSX;
     </script>
 </body>
 </html>
