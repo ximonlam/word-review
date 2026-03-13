@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>宝贝的英文单词复习</title>
-    <!-- Add SheetJS library to parse XLSX files -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
@@ -44,7 +43,7 @@
             font-weight: bold;
             color: #e74c3c;
             margin: 30px 0;
-            display: none; /* 默认隐藏单词 */
+            display: none;
         }
         .read-count {
             font-size: 22px;
@@ -61,15 +60,9 @@
             color: white;
             transition: all 0.3s;
         }
-        .show-word-btn {
-            background-color: #9b59b6;
-        }
-        .next-btn {
-            background-color: #27ae60;
-        }
-        .repeat-btn {
-            background-color: #3498db;
-        }
+        .show-word-btn { background-color: #9b59b6; }
+        .next-btn { background-color: #27ae60; }
+        .repeat-btn { background-color: #3498db; }
         .no-word {
             font-size: 28px;
             color: #2c3e50;
@@ -103,16 +96,13 @@
         const speechRate = 0.8;
         const pauseTime = 2000;
 
-        // ✅ Read XLSX file from GitHub root (words.xlsx)
-        const XLSX_URL = "https://ximonlam.github.io/word-review/words.xlsx";
+        const XLSX_URL = "words.xlsx";
 
-        // Smart date format conversion
         function smartConvertDate(dateStr) {
             if (!dateStr) return "";
             dateStr = dateStr.replace(/-/g, "/");
             const parts = dateStr.split("/").filter(p => p);
             if (parts.length !== 3) return dateStr;
-
             if (parts[0].length === 4) {
                 return `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
             } else if (parts[2].length === 4) {
@@ -121,25 +111,17 @@
             return dateStr;
         }
 
-        // Load and parse XLSX file from GitHub
         async function loadGitHubXLSX() {
             try {
                 const response = await fetch(XLSX_URL);
                 if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-                
-                // Read XLSX as binary data
                 const arrayBuffer = await response.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: "array" });
-                
-                // Get the first worksheet (you can change to specific sheet name e.g., "Sheet1")
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                
-                // Convert worksheet to JSON (same structure as CSV)
                 const data = XLSX.utils.sheet_to_json(worksheet);
                 if (data.length === 0) throw new Error("XLSX content is empty");
 
-                // Format data (match CSV structure)
                 wordDatabase = data.map(item => ({
                     word: (item.word || "").toString().trim(),
                     meaning: (item.meaning || "").toString().trim(),
@@ -154,7 +136,6 @@
             }
         }
 
-        // Initialize: Match today's date
         function init() {
             const now = new Date();
             const year = now.getFullYear();
@@ -174,11 +155,9 @@
             showWord(currentIndex);
         }
 
-        // Read word aloud
         function speakWord(word, count) {
             const readCountEl = document.querySelector('.read-count');
             if (readCountEl) readCountEl.textContent = `Reading ${count}th time...`;
-            
             setTimeout(() => {
                 if (!window.speechSynthesis) {
                     if (readCountEl) readCountEl.textContent = "⚠️ Browser does not support speech";
@@ -230,7 +209,6 @@
             showWord(currentIndex);
         }
 
-        // Load XLSX when page loads
         window.onload = loadGitHubXLSX;
     </script>
 </body>
