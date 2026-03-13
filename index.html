@@ -1,168 +1,106 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>寶貝的英文單字複習</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, 微軟雅黑;
-            max-width: 600px;
-            margin: 30px auto;
-            padding: 20px;
-            background: #f9f9f9;
-            text-align: center;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
-        }
-        h1 { color: #e67e22; font-size: 36px; margin-bottom: 30px; }
-        .meaning { font-size: 28px; color: #2c3e50; margin: 20px 0; }
-        .word { font-size: 48px; font-weight: bold; color: #e74c3c; margin: 30px 0; display: none; }
-        button {
-            font-size: 24px;
-            padding: 15px 40px;
-            margin: 10px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            color: white;
-            transition: all 0.3s;
-        }
-        .show-btn { background: #9b59b6; }
-        .next-btn { background: #27ae60; }
-        .read-btn { background: #3498db; }
-        button:hover { opacity: 0.9; transform: scale(1.05); }
-        .loading { font-size: 24px; color: #3498db; margin: 50px 0; }
-        .finish { font-size: 28px; color: #27ae60; margin: 50px 0; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>寶貝英文單字複習</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+body{font-family:Arial,微軟雅黑;text-align:center;background:#f9f9f9;padding:20px;}
+.container{max-width:600px;margin:30px auto;background:white;padding:30px;border-radius:20px;box-shadow:0 0 15px rgba(0,0,0,0.1);}
+h1{color:#e67e22;}
+.meaning{font-size:28px;color:#2c3e50;margin:20px 0;}
+.word{font-size:48px;font-weight:bold;color:#e74c3c;margin:20px 0;display:none;}
+button{font-size:22px;padding:14px 30px;margin:8px;border:none;border-radius:10px;color:white;cursor:pointer;}
+.show-btn{background:#9b59b6;}
+.read-btn{background:#3498db;}
+.next-btn{background:#27ae60;}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>🌟 寶貝的英文單字複習 🌟</h1>
-        <div id="content" class="loading">載入中...</div>
-    </div>
+<div class="container">
+<h1>🌟 寶貝的英文單字複習 🌟</h1>
+<div id="content">載入中...</div>
+</div>
 
-    <script>
-        let allWords = [];
-        let currentIndex = 0;
-        let synth = window.speechSynthesis; // 提前初始化语音对象
-        let voices = []; // 存储可用语音列表
+<script>
+let allWords = [];
+let currentIndex = 0;
+let synth = window.speechSynthesis;
 
-        // 第一步：提前加载语音列表（解决浏览器延迟问题）
-        function loadVoices() {
-            voices = synth.getVoices();
-            // 如果没加载到语音，1秒后重试（最多5次）
-            if (voices.length === 0 && loadVoices.retryCount < 5) {
-                loadVoices.retryCount++;
-                setTimeout(loadVoices, 1000);
-            }
-        }
-        loadVoices.retryCount = 0;
-        // 监听语音加载事件
-        synth.onvoiceschanged = loadVoices;
-        // 页面加载时立即触发语音加载
-        window.onload = function() {
-            loadVoices();
-            loadWords();
-        };
+// 提前載入語音
+function loadVoices() {
+  return new Promise(resolve => {
+    let voices = synth.getVoices();
+    if (voices.length > 0) {
+      resolve(voices);
+      return;
+    }
+    synth.onvoiceschanged = () => {
+      voices = synth.getVoices();
+      resolve(voices);
+    };
+  });
+}
 
-        // 读取Excel文件
-        async function loadWords() {
-            try {
-                const response = await fetch('words.xlsx');
-                if (!response.ok) throw new Error("無法讀取Excel文件");
-                
-                const arrayBuffer = await response.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                
-                allWords = XLSX.utils.sheet_to_json(worksheet).map(item => ({
-                    word: item.word || '',
-                    meaning: item.meaning || ''
-                })).filter(item => item.word.trim() && item.meaning.trim());
-                
-                if (allWords.length === 0) {
-                    document.getElementById('content').innerHTML = '<div class="loading">❌ 沒有找到有效單字</div>';
-                    return;
-                }
-                showCurrentWord();
-            } catch (error) {
-                document.getElementById('content').innerHTML = `<div class="loading">❌ 載入失敗：${error.message}</div>`;
-            }
-        }
+// 讀英文單字（女聲）
+async function speak(word) {
+  const voices = await loadVoices();
+  synth.cancel();
 
-        // 核心：修复后的朗读函数（兼容所有浏览器）
-        function readSingleWord(word) {
-            // 1. 强制停止所有朗读
-            synth.cancel();
-            // 2. 创建朗读对象
-            const utterance = new SpeechSynthesisUtterance(word);
-            // 3. 优先选择英文语音（解决语音类型错误）
-            const enVoice = voices.find(voice => voice.lang.includes('en'));
-            if (enVoice) {
-                utterance.voice = enVoice;
-            }
-            // 4. 基础设置（降低速度，更清晰）
-            utterance.lang = 'en-US';
-            utterance.rate = 0.7; // 比之前更慢，适合小朋友
-            utterance.volume = 1;
-            utterance.pitch = 1; // 音调正常
-            // 5. 强制触发朗读（关键！解决浏览器不响应问题）
-            setTimeout(() => {
-                synth.speak(utterance);
-            }, 100);
-        }
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang = 'en-US';
+  u.rate = 0.8;
 
-        // 朗读3次，间隔2秒
-        function readWordThreeTimes(word) {
-            // 清除旧定时器
-            clearInterval(window.readTimer);
-            let count = 0;
+  // 優先選 女聲
+  const femaleVoice = voices.find(v => 
+    v.lang.includes('en-US') && 
+    (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Google'))
+  );
+  if (femaleVoice) u.voice = femaleVoice;
 
-            // 立即读第一次
-            readSingleWord(word);
-            count++;
+  synth.speak(u);
+}
 
-            // 间隔2秒读剩下的
-            window.readTimer = setInterval(() => {
-                if (count < 3) {
-                    readSingleWord(word);
-                    count++;
-                } else {
-                    clearInterval(window.readTimer);
-                }
-            }, 2000);
-        }
+// 讀3次，間隔2秒
+function read3Times(word) {
+  clearInterval(window.t);
+  let c = 0;
+  speak(word); c++;
+  window.t = setInterval(() => {
+    if (c < 3) { speak(word); c++; }
+    else clearInterval(window.t);
+  }, 2000);
+}
 
-        // 显示当前单词
-        function showCurrentWord() {
-            clearInterval(window.readTimer);
-            if (currentIndex >= allWords.length) {
-                document.getElementById('content').innerHTML = '<div class="finish">🎉 所有單字複習完成！</div>';
-                return;
-            }
+// 讀取 Excel
+async function loadWords() {
+  const res = await fetch('words.xlsx');
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type:'array' });
+  const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+  allWords = data.filter(x => x.word && x.meaning);
+  show();
+}
 
-            const wordItem = allWords[currentIndex];
-            document.getElementById('content').innerHTML = `
-                <div class="meaning">💡 中文：${wordItem.meaning}</div>
-                <div class="word" id="wordText">${wordItem.word.toUpperCase()}</div>
-                <button class="show-btn" onclick="document.getElementById('wordText').style.display='block'">👀 顯示單字</button>
-                <button class="read-btn" onclick="readWordThreeTimes('${wordItem.word}')">🔊 朗讀3次</button>
-                <button class="next-btn" onclick="nextWord()">➡️ 下一個</button>
-            `;
-        }
+function show() {
+  clearInterval(window.t);
+  if (currentIndex >= allWords.length) {
+    document.getElementById('content').innerHTML = `<div>🎉 全部複習完了！</div>`;
+    return;
+  }
+  const w = allWords[currentIndex];
+  document.getElementById('content').innerHTML = `
+    <div class="meaning">💡 ${w.meaning}</div>
+    <div class="word" id="w">${w.word.toUpperCase()}</div>
+    <button class="show-btn" onclick="document.getElementById('w').style.display='block'">👀 顯示單字</button>
+    <button class="read-btn" onclick="read3Times('${w.word}')">🔊 朗讀3次</button>
+    <button class="next-btn" onclick="next()">➡️ 下一個</button>
+  `;
+}
 
-        // 下一个单词
-        function nextWord() {
-            currentIndex++;
-            showCurrentWord();
-        }
-    </script>
+function next() { currentIndex++; show(); }
+loadWords();
+</script>
 </body>
 </html>
