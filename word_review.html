@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宝贝的英文单词复习（Google Sheets版）</title>
+    <style>
+        body {
+            font-family: Arial, 微软雅黑;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #e67e22;
+            font-size: 36px;
+            margin-bottom: 30px;
+        }
+        .date-info {
+            font-size: 20px;
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+        .word-card {
+            margin: 40px 0;
+        }
+        .meaning {
+            font-size: 28px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .word {
+            font-size: 48px;
+            font-weight: bold;
+            color: #e74c3c;
+            margin: 30px 0;
+            display: none; /* 默认隐藏单词 */
+        }
+        .read-count {
+            font-size: 22px;
+            color: #95a5a6;
+            margin-bottom: 20px;
+        }
+        button {
+            font-size: 24px;
+            padding: 15px 40px;
+            margin: 10px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            color: white;
+            transition: all 0.3s;
+        }
+        .show-word-btn {
+            background-color: #9b59b6;
+        }
+        .next-btn {
+            background-color: #27ae60;
+        }
+        .repeat-btn {
+            background-color: #3498db;
+        }
+        .no-word {
+            font-size: 28px;
+            color: #2c3e50;
+            margin: 50px 0;
+        }
+        button:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+        .debug-info {
+            font-size: 14px;
+            color: #e74c3c;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌟 宝贝的英文单词复习（Google Sheets版）🌟</h1>
+        <div class="debug-info" id="debugInfo">正在加载单词表...</div>
+        <div class="date-info" id="dateInfo"></div>
+        <div id="wordContent">
+            <div class="no-word">请稍候，正在加载数据...</div>
+        </div>
+    </div>
+
+    <script>
+        let wordDatabase = [];
+        let todayWords = [];
+        let currentIndex = 0;
+        const speechRate = 0.8;
+        const pauseTime = 2000;
+
+        // 👇 把这里换成你的 Google Sheets CSV 链接
+        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1XGzNS8syHGCw-s4YEwsQImhBNbKHXhet5AGGA9hHmC0/edit?gid=0#gid=0";
+
+        // ✅ 适配新日期格式：2026/3/13 → 2026-03-13
+        function convertDate(dateStr) {
+            if (!dateStr) return "";
+            const parts = dateStr.split("/");
+            if (parts.length === 3) {
+                const year = parts[0];
+                const month = parts[1].padStart(2, "0");
+                const day = parts[2].padStart(2, "0");
+                return `${year}-${month}-${day}`;
+            }
+            return dateStr;
+        }
+
+        // 加载 Google Sheets 数据
+        async function loadGoogleSheetData() {
+            try {
+                const response = await fetch(GOOGLE_SHEET_CSV_URL);
+                const csvText = await response.text();
+                
+                // 解析 CSV
+                const lines = csvText.split("\n");
+                const headers = lines[0].split(",").map(h => h.trim());
+                const data = lines.slice(1).map(line => {
+                    const values = line.split(",").map(v => v.trim());
+                    let obj = {};
+                    headers.forEach((h, i) => obj[h] = values[i]);
+                    return obj;
+                }).filter(item => item.word); // 过滤空行
+
+                wordDatabase = data.map(item => ({
+                    word: item.word,
+                    meaning: item.meaning,
+                    date: convertDate(item.date)
+                }));
+
+                document.getElementById('debugInfo').textContent = `✅ 加载到 ${wordDatabase.length} 行单词`;
+                init();
+            } catch (err) {
+                document.getElementById('debugInfo').textContent = `❌ 加载失败：${err.message}`;
+                console.error(err);
+            }
+        }
+
+        // 初始化：匹配本地日期
+        function init() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, "0");
+            const day = String(now.getDate()).padStart(2, "0");
+            const systemToday = `${year}-${month}-${day}`;
+
+            document.getElementById('dateInfo').textContent = `📅 今天：${systemToday}`;
+            todayWords = wordDatabase.filter(word => word.date === systemToday);
+            document.getElementById('debugInfo').textContent += ` | 匹配到 ${todayWords.length} 个今日单词`;
+
+            if (todayWords.length === 0) {
+                document.getElementById('wordContent').innerHTML = `<div class="no-word">🎉 今天没有需要复习的单词！</div>`;
+                return;
+            }
+            currentIndex = 0;
+            showWord(currentIndex);
+        }
+
+        // 朗读单词
+        function speakWord(word, count) {
+            const readCountEl = document.querySelector('.read-count');
+            if (readCountEl) readCountEl.textContent = `正在读第 ${count} 遍...`;
+            
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(word);
+                utterance.lang = 'en-US';
+                utterance.rate = speechRate;
+                window.speechSynthesis.speak(utterance);
+                utterance.onend = () => {
+                    if (readCountEl) readCountEl.textContent = `第 ${count} 遍读完啦 ✨`;
+                };
+            }, pauseTime);
+        }
+
+        function readWordThreeTimes(word) {
+            const readCountEl = document.querySelector('.read-count');
+            if (readCountEl) readCountEl.textContent = '';
+            speakWord(word, 1);
+            setTimeout(() => speakWord(word, 2), pauseTime + 2000);
+            setTimeout(() => speakWord(word, 3), pauseTime * 2 + 4000);
+        }
+
+        function showWord(index) {
+            if (index >= todayWords.length) {
+                document.getElementById('wordContent').innerHTML = `<div class="no-word">🎊 恭喜！今天单词复习完成！</div>`;
+                return;
+            }
+            const word = todayWords[index];
+            document.getElementById('wordContent').innerHTML = `
+                <div class="word-card">
+                    <div class="meaning">💡 中文：${word.meaning}</div>
+                    <div class="word" id="currentWord">${word.word.toUpperCase()}</div>
+                    <div class="read-count"></div>
+                    <button class="show-word-btn" onclick="showCurrentWord()">👀 显示单词</button>
+                    <button class="repeat-btn" onclick="readWordThreeTimes('${word.word}')">🔄 再读一遍</button>
+                    <button class="next-btn" onclick="nextWord()">➡️ 下一个</button>
+                </div>
+            `;
+            readWordThreeTimes(word.word);
+        }
+
+        function showCurrentWord() {
+            document.getElementById('currentWord').style.display = 'block';
+        }
+
+        function nextWord() {
+            currentIndex++;
+            showWord(currentIndex);
+        }
+
+        // 页面加载时自动读取 Google Sheets
+        window.onload = loadGoogleSheetData;
+    </script>
+</body>
+</html>
