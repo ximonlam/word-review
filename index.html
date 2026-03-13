@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>宝贝的英文单词复习</title>
+    <title>寶貝的英文單字複習</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
-            font-family: Arial, 微软雅黑;
-            max-width: 800px;
-            margin: 50px auto;
+            font-family: Arial, 微軟雅黑;
+            max-width: 600px;
+            margin: 30px auto;
             padding: 20px;
-            background: #f9f9f9;
+            background-color: #f9f9f9;
             text-align: center;
         }
         .container {
-            background: white;
-            padding: 40px;
+            background-color: white;
+            padding: 30px;
             border-radius: 20px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
         }
         h1 {
             color: #e67e22;
@@ -35,7 +35,7 @@
             font-weight: bold;
             color: #e74c3c;
             margin: 30px 0;
-            display: none;
+            display: none; /* 默认隐藏单词 */
         }
         button {
             font-size: 24px;
@@ -43,74 +43,96 @@
             margin: 10px;
             border: none;
             border-radius: 10px;
-            color: white;
             cursor: pointer;
+            color: white;
+            transition: all 0.3s;
         }
-        .show-btn { background: #9b59b6; }
-        .next-btn { background: #27ae60; }
-        .tip {
-            font-size: 16px;
-            color: #666;
-            margin-top: 20px;
+        .show-btn {
+            background-color: #9b59b6;
+        }
+        .next-btn {
+            background-color: #27ae60;
+        }
+        button:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+        .loading {
+            font-size: 24px;
+            color: #3498db;
+            margin: 50px 0;
+        }
+        .finish {
+            font-size: 28px;
+            color: #27ae60;
+            margin: 50px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🌟 宝贝的英文单词复习 🌟</h1>
-        <div id="content">加载中...</div>
-        <div class="tip">已跳过日期筛选，显示所有单词</div>
+        <h1>🌟 寶貝的英文單字複習 🌟</h1>
+        <div id="content" class="loading">載入中...</div>
     </div>
 
     <script>
         let allWords = [];
-        let current = 0;
+        let currentIndex = 0;
 
-        // 直接读取Excel并显示所有单词
-        async function loadAllWords() {
+        // 读取Excel文件（只取word和meaning列）
+        async function loadWords() {
             try {
-                // 读取GitHub上的words.xlsx
-                const res = await fetch('words.xlsx');
-                const buf = await res.arrayBuffer();
-                const wb = XLSX.read(buf, { type: 'array' });
-                // 取第一个工作表的数据
-                const sheet = wb.Sheets[wb.SheetNames[0]];
-                allWords = XLSX.utils.sheet_to_json(sheet);
+                // 读取GitHub根目录的words.xlsx
+                const response = await fetch('words.xlsx');
+                if (!response.ok) throw new Error("無法讀取Excel文件");
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                
+                // 转换为JSON，只保留word和meaning
+                allWords = XLSX.utils.sheet_to_json(worksheet).map(item => ({
+                    word: item.word || '',
+                    meaning: item.meaning || ''
+                })).filter(item => item.word.trim() && item.meaning.trim()); // 过滤空单词
                 
                 if (allWords.length === 0) {
-                    document.getElementById('content').innerHTML = '<div>❌ 没有读取到单词</div>';
+                    document.getElementById('content').innerHTML = '<div class="loading">❌ 沒有找到有效單字</div>';
                     return;
                 }
+                
                 // 显示第一个单词
-                showWord();
-            } catch (err) {
-                document.getElementById('content').innerHTML = `<div>❌ 加载失败：${err.message}</div>`;
+                showCurrentWord();
+            } catch (error) {
+                document.getElementById('content').innerHTML = `<div class="loading">❌ 載入失敗：${error.message}</div>`;
             }
         }
 
         // 显示当前单词
-        function showWord() {
-            if (current >= allWords.length) {
-                document.getElementById('content').innerHTML = '<div>🎉 所有单词复习完成！</div>';
+        function showCurrentWord() {
+            if (currentIndex >= allWords.length) {
+                document.getElementById('content').innerHTML = '<div class="finish">🎉 所有單字複習完成！</div>';
                 return;
             }
-            const word = allWords[current];
+
+            const wordItem = allWords[currentIndex];
             document.getElementById('content').innerHTML = `
-                <div class="meaning">💡 中文：${word.meaning || '无释义'}</div>
-                <div class="word" id="wordText">${word.word || '无单词'}</div>
-                <button class="show-btn" onclick="document.getElementById('wordText').style.display='block'">👀 显示单词</button>
-                <button class="next-btn" onclick="nextWord()">➡️ 下一个</button>
+                <div class="meaning">💡 中文：${wordItem.meaning}</div>
+                <div class="word" id="wordText">${wordItem.word.toUpperCase()}</div>
+                <button class="show-btn" onclick="document.getElementById('wordText').style.display='block'">👀 顯示單字</button>
+                <button class="next-btn" onclick="nextWord()">➡️ 下一個</button>
             `;
         }
 
         // 下一个单词
         function nextWord() {
-            current++;
-            showWord();
+            currentIndex++;
+            showCurrentWord();
         }
 
-        // 页面加载时执行
-        window.onload = loadAllWords;
+        // 页面加载完成后执行
+        window.onload = loadWords;
     </script>
 </body>
 </html>
