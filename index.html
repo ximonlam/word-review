@@ -77,51 +77,95 @@ button{font-size:22px;padding:10px 20px;margin:8px;border:none;border-radius:8px
 .show-btn{background:#9b59b6;}
 .read-btn{background:#3498db;}
 .next-btn{background:#27ae60;}
+
+/* 提示样式 */
+.tip{font-size:16px;color:#666;margin-top:10px;}
+.loading{font-size:24px;color:#3498db;margin:20px 0;}
+.error{font-size:24px;color:#e74c3c;margin:20px 0;}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>🌟 Kids Word Practice 🌟</h1>
+  <h1>🌟 Kids Word Practice 🌟</h1>
 
-<div class="file-select">
-Select File:
-<select id="fileSelect">
-  <option value="BQ1.xlsx">BQ1.xlsx</option>
-  <option value="BQ2.xlsx">BQ2.xlsx</option>
-  <option value="BQ3.xlsx">BQ3.xlsx</option>
-  <option value="BQ4.xlsx">BQ4.xlsx</option>
-  <option value="BQ5.xlsx">BQ5.xlsx</option>
-</select>
-<button id="fileConfirm">Confirm</button>
-</div>
+  <!-- 文件选择区域（完全读取fileList.json） -->
+  <div class="file-select">
+    Select File:
+    <select id="fileSelect">
+      <option value="">Loading files...</option>
+    </select>
+    <button id="fileConfirm">Confirm</button>
+  </div>
 
-<div class="day-filter" id="dayFilterArea">
-Enter Day:
-<input type="number" id="dayNum" min="1" max="20" placeholder="1">
-<button id="filterBtn">Filter</button>
-</div>
+  <!-- Day筛选区域 -->
+  <div class="day-filter" id="dayFilterArea">
+    Enter Day:
+    <input type="number" id="dayNum" min="1" max="20" placeholder="1">
+    <button id="filterBtn">Filter</button>
+  </div>
 
-<div class="export-switch" id="exportArea">
-<button id="exportBtn">📋 Show All Words</button>
-</div>
+  <!-- 导出按钮 -->
+  <div class="export-switch" id="exportArea">
+    <button id="exportBtn">📋 Show All Words</button>
+  </div>
 
-<div id="wordContent">Please select a file first</div>
+  <!-- 单词显示区域 -->
+  <div id="wordContent">Please select a file first</div>
 </div>
 
 <script>
+// 全局变量
 let allWords = [];
 let filteredWords = [];
 let currentIdx = 0;
 let currentFileName = "";
 const synth = window.speechSynthesis;
 
+// ====================== 核心：读取fileList.json生成下拉列表（无硬编码） ======================
+async function loadFileList() {
+  const select = document.getElementById('fileSelect');
+  try {
+    // 读取你的fileList.json配置文件
+    const res = await fetch('https://raw.githubusercontent.com/ximonlam/word-review/main/fileList.json');
+    if (!res.ok) throw new Error('Config file load failed');
+    
+    const config = await res.json();
+    const files = config.files || [];
+
+    // 清空下拉列表
+    select.innerHTML = '';
+    if (files.length === 0) {
+      select.innerHTML = '<option value="">No files found</option>';
+      return;
+    }
+
+    // 只显示fileList.json里的文件（完全同步）
+    files.forEach(file => {
+      const option = document.createElement('option');
+      option.value = file;
+      option.textContent = file;
+      select.appendChild(option);
+    });
+  } catch (e) {
+    select.innerHTML = `<option value="">Load error: ${e.message}</option>`;
+  }
+}
+
+// ====================== 加载选中的文件 ======================
 async function loadSelectedFile(fileName) {
+  if (!fileName) {
+    alert('Please select a valid file!');
+    return;
+  }
+
   currentFileName = fileName;
-  document.getElementById("wordContent").innerHTML = "Loading...";
+  document.getElementById("wordContent").innerHTML = "Loading file...";
 
   try {
     const url = `https://raw.githubusercontent.com/ximonlam/word-review/main/${fileName}`;
     const res = await fetch(url);
+    if (!res.ok) throw new Error('File not found');
+    
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array" });
     const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
@@ -137,21 +181,29 @@ async function loadSelectedFile(fileName) {
     filteredWords = [...allWords];
     currentIdx = 0;
 
+    // 显示筛选和导出区域
     document.getElementById("dayFilterArea").style.display = "block";
     document.getElementById("exportArea").style.display = "block";
     showWord();
   } catch (e) {
-    document.getElementById("wordContent").innerHTML = "Load failed";
+    document.getElementById("wordContent").innerHTML = `Load failed: ${e.message}`;
   }
 }
 
+// ====================== Day筛选 ======================
 function filterByDay() {
   const day = Number(document.getElementById("dayNum").value);
+  if (isNaN(day) || day < 1) {
+    alert('Please enter a valid day (1+)!');
+    return;
+  }
+  
   filteredWords = allWords.filter(x => x.day === day);
   currentIdx = 0;
   showWord();
 }
 
+// ====================== 女声朗读3次（间隔2秒） ======================
 function getVoices() {
   return new Promise(resolve => {
     let v = synth.getVoices();
@@ -185,17 +237,21 @@ function read3Times(word) {
   }, 2000);
 }
 
+// ====================== 显示单词 ======================
 function showWord() {
   clearInterval(window.readTimer);
   const el = document.getElementById("wordContent");
+  
   if (filteredWords.length === 0) {
     el.innerHTML = "No words for this day";
     return;
   }
+  
   if (currentIdx >= filteredWords.length) {
     el.innerHTML = "🎉 Practice Complete!";
     return;
   }
+  
   const w = filteredWords[currentIdx];
   el.innerHTML = `
     <div class="meaning">💡 ${w.meaning}</div>
@@ -203,9 +259,7 @@ function showWord() {
     <button class="show-btn" onclick="document.getElementById('w').style.display='block'">👀 Show Word</button>
     <button class="read-btn" onclick="read3Times('${w.word}')">🔊 Read 3x</button>
     <button class="next-btn" onclick="next()">➡️ Next</button>
-    <div style="font-size:16px;color:#666;margin-top:10px">
-    File: ${currentFileName}  Day: ${w.day}
-    </div>
+    <div class="tip">File: ${currentFileName}  Day: ${w.day}</div>
   `;
 }
 
@@ -214,7 +268,13 @@ function next() {
   showWord();
 }
 
+// ====================== 导出所有单词 ======================
 function showAllWords() {
+  if (allWords.length === 0) {
+    alert('No words to show!');
+    return;
+  }
+
   let win = window.open("", "_blank", "width=800,height=600");
   let html = `
   <html>
@@ -229,20 +289,33 @@ function showAllWords() {
   <table>
   <tr><th>Day</th><th>Word</th><th>Meaning</th></tr>
   `;
+  
   allWords.forEach(w => {
     html += `<tr><td>${w.day}</td><td>${w.word}</td><td>${w.meaning}</td></tr>`;
   });
-  html += `</table></body></html>`;
+  
+  html += `
+  </table>
+  <div style="text-align:center;color:#666;">Total: ${allWords.length} words</div>
+  </body></html>`;
+  
   win.document.write(html);
   win.document.close();
 }
 
-document.getElementById("fileConfirm").onclick = () => {
-  const f = document.getElementById("fileSelect").value;
-  loadSelectedFile(f);
-};
-document.getElementById("filterBtn").onclick = filterByDay;
-document.getElementById("exportBtn").onclick = showAllWords;
+// ====================== 初始化 ======================
+document.addEventListener('DOMContentLoaded', () => {
+  // 加载fileList.json生成下拉列表（关键：不再写死BQ5）
+  loadFileList();
+
+  // 绑定按钮事件
+  document.getElementById("fileConfirm").onclick = () => {
+    const f = document.getElementById("fileSelect").value;
+    loadSelectedFile(f);
+  };
+  document.getElementById("filterBtn").onclick = filterByDay;
+  document.getElementById("exportBtn").onclick = showAllWords;
+});
 </script>
 </body>
 </html>
