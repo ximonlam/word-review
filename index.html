@@ -37,7 +37,7 @@ body{
   font-weight:bold;
 }
 
-/* 选择区 - EXACT ALIGNMENT as per screenshot */
+/* 选择区 - Exact alignment as screenshot */
 .select-section {
   padding:15px;
   background:#f8fafc;
@@ -46,44 +46,41 @@ body{
 .select-row {
   display:flex;
   align-items:center;
-  justify-content:flex-start; /* Align left like screenshot */
-  margin: 8px 0; /* Tighter spacing */
-  gap: 0; /* Remove default gap */
+  justify-content:flex-start;
+  margin: 8px 0;
+  gap: 0;
 }
 .select-row label {
   font-size:16px;
   color:#334155;
-  min-width: 70px; /* Fixed width for labels (Level:/File:/Day:) */
+  min-width: 70px;
   text-align: left;
   margin-right: 8px;
 }
-/* Input/Select boxes -统一样式 + 对齐 */
 .select-row select,
 .select-row input {
-  flex: 1; /* Take remaining space */
-  padding: 8px 10px; /* Match screenshot height */
+  flex: 1;
+  padding: 8px 10px;
   font-size: 16px;
-  border: 1px solid #ccc; /* Thin border like screenshot */
-  border-radius: 0; /* No rounded corners */
+  border: 1px solid #ccc;
+  border-radius: 0;
   background:white;
-  height: 40px; /* Fixed height for alignment */
+  height: 40px;
   box-sizing: border-box;
 }
-/* Buttons - EXACT COLORS + SIZES as screenshot */
 .select-row button {
   padding: 8px 15px;
   font-size: 16px;
   border: none;
-  border-radius: 0; /* No rounded corners */
+  border-radius: 0;
   color: white;
   cursor: pointer;
-  height: 40px; /* Match input height */
-  min-width: 80px; /* Fixed button width */
+  height: 40px;
+  min-width: 80px;
   box-sizing: border-box;
 }
-/* Button colors match screenshot */
 .btn-level { 
-  background: #ff4500; /* Orange/red for Level Confirm */
+  background: #ff4500; /* Orange/Red for Level Confirm */
 }
 .btn-file { 
   background: #0066cc; /* Blue for File Confirm */
@@ -131,7 +128,7 @@ body{
   cursor:not-allowed;
 }
 
-/* Show All Words Button */
+/* Show All Words Button - HIDDEN by default */
 .show-all-btn {
   padding:10px 20px;
   font-size:16px;
@@ -141,13 +138,10 @@ body{
   color:white;
   cursor:pointer;
   margin:10px 0;
+  display: none; /* Hidden initially (not just disabled) */
 }
 .show-all-btn:hover {
   background:#4f46e5;
-}
-.show-all-btn:disabled {
-  background:#94a3b8;
-  cursor:not-allowed;
 }
 
 .tip {
@@ -187,7 +181,7 @@ body{
     <h1>🌟 Kids Word Practice 🌟</h1>
   </div>
 
-  <!-- 选择区 (EXACT ALIGNMENT) -->
+  <!-- 选择区 -->
   <div class="select-section">
     <div class="select-row">
       <label>Level:</label>
@@ -220,8 +214,8 @@ body{
       <p style="color:#64748b;">Please select Level first</p>
     </div>
     
-    <!-- Show All Words Button -->
-    <button class="show-all-btn" id="showAllBtn" disabled>📋 Show All Words</button>
+    <!-- Show All Words Button (HIDDEN by default) -->
+    <button class="show-all-btn" id="showAllBtn">📋 Show All Words</button>
   </div>
 </div>
 
