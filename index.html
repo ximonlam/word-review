@@ -25,7 +25,7 @@ body{
   box-shadow:0 4px 12px rgba(0,0,0,0.08);
 }
 
-/* 標題區 */
+/* 标题区 */
 .header {
   background: linear-gradient(135deg, #ff9a56, #ff6b35);
   color:white;
@@ -37,7 +37,7 @@ body{
   font-weight:bold;
 }
 
-/* 選擇區（收合式，更清爽） */
+/* 选择区 */
 .select-section {
   padding:15px;
   background:#f8fafc;
@@ -76,7 +76,7 @@ body{
 .btn-file { background:#3b82f6; }
 .btn-filter { background:#10b981; }
 
-/* 練習區 */
+/* 练习区 */
 .practice-section {
   padding:25px 15px;
   text-align:center;
@@ -120,16 +120,32 @@ body{
   color:#64748b;
   margin-top:15px;
 }
+
+/* 底部链接 */
+.footer {
+  text-align:center;
+  margin:20px 0;
+  font-size:14px;
+  color:#666;
+}
+.footer a {
+  color:#3498db;
+  text-decoration:none;
+  margin:0 5px;
+}
+.footer a:hover {
+  text-decoration:underline;
+}
 </style>
 </head>
 <body>
 <div class="container">
-  <!-- 標題 -->
+  <!-- 标题 -->
   <div class="header">
     <h1>🌟 Kids Word Practice 🌟</h1>
   </div>
 
-  <!-- 選擇區 -->
+  <!-- 选择区 -->
   <div class="select-section">
     <div class="select-row">
       <label>Level:</label>
@@ -151,12 +167,12 @@ body{
 
     <div class="select-row" id="dayRow" style="display:none;">
       <label>Day:</label>
-      <input type="number" id="dayNum" min="1" placeholder="1">
+      <input type="number" id="dayNum" min="1" placeholder="1" value="1">
       <button class="btn-filter" id="filterBtn">Filter</button>
     </div>
   </div>
 
-  <!-- 練習區 -->
+  <!-- 练习区 -->
   <div class="practice-section">
     <div id="wordContent">
       <p style="color:#64748b;">Please select Level first</p>
@@ -164,174 +180,14 @@ body{
   </div>
 </div>
 
-<script>
-let allWords = [];
-let filteredWords = [];
-let currentIdx = 0;
-let currentFileName = "";
-let currentLevel = "";
-const synth = window.speechSynthesis;
+<!-- 底部链接（隐私/关于/免责） -->
+<div class="footer">
+  <a href="about.html">About</a> | 
+  <a href="privacy.html">Privacy Policy</a> | 
+  <a href="disclaimer.html">Disclaimer</a>
+</div>
 
-// 工具函式
-function removeFileExtension(filename) {
-  return filename.replace(/\.xlsx$/i, '');
-}
-function getFileListUrl(level) {
-  return `https://raw.githubusercontent.com/ximonlam/word-review/main/data/${level}/fileList.json`;
-}
-function getXlsxFileUrl(level, filename) {
-  return `https://raw.githubusercontent.com/ximonlam/word-review/main/data/${level}/${filename}`;
-}
-
-// 載入Level檔案列表
-async function loadFileListByLevel(level) {
-  const fileSelect = document.getElementById('fileSelect');
-  const fileRow = document.getElementById('fileRow');
-  fileSelect.innerHTML = '<option value="">Loading...</option>';
-  fileRow.style.display = 'flex';
-  try {
-    const res = await fetch(getFileListUrl(level));
-    if (!res.ok) throw new Error(`No file list for ${level}`);
-    const config = await res.json();
-    const files = config.files || [];
-    fileSelect.innerHTML = '';
-    if (files.length === 0) {
-      fileSelect.innerHTML = '<option value="">No files</option>';
-      return;
-    }
-    files.forEach(file => {
-      const option = document.createElement('option');
-      option.value = file;
-      option.textContent = removeFileExtension(file);
-      fileSelect.appendChild(option);
-    });
-  } catch (e) {
-    fileSelect.innerHTML = '<option value="">Load error</option>';
-  }
-}
-
-// 載入選中檔案
-async function loadSelectedFile(filename) {
-  if (!filename || !currentLevel) return;
-  currentFileName = filename;
-  document.getElementById("wordContent").innerHTML = '<p style="color:#3b82f6;">Loading...</p>';
-  document.getElementById("dayRow").style.display = 'flex';
-  try {
-    const url = getXlsxFileUrl(currentLevel, filename);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("File not found");
-    const buf = await res.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-    const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-    allWords = data.filter(x => x.word && x.meaning && x.day).map(x => ({
-      word: x.word,
-      meaning: x.meaning,
-      day: Number(x.day)
-    }));
-    filteredWords = [...allWords];
-    currentIdx = 0;
-    showWord();
-  } catch (e) {
-    document.getElementById("wordContent").innerHTML = '<p style="color:#ef4444;">Load failed</p>';
-  }
-}
-
-// 篩選Day
-function filterByDay() {
-  const day = Number(document.getElementById("dayNum").value);
-  if (isNaN(day) || day < 1) {
-    alert('Please enter a valid day!');
-    return;
-  }
-  filteredWords = allWords.filter(x => x.day === day);
-  currentIdx = 0;
-  showWord();
-}
-
-// 語音朗讀
-function getVoices() {
-  return new Promise(resolve => {
-    let v = synth.getVoices();
-    if (v.length) resolve(v);
-    else synth.onvoiceschanged = () => resolve(synth.getVoices());
-  });
-}
-async function speak(word) {
-  const voices = await getVoices();
-  synth.cancel();
-  const u = new SpeechSynthesisUtterance(word);
-  u.lang = "en-US";
-  u.rate = 0.8;
-  const female = voices.find(v =>
-    v.lang.includes("en") &&
-    (v.name.includes("Female") || v.name.includes("Samantha") || v.name.includes("Google"))
-  );
-  if (female) u.voice = female;
-  synth.speak(u);
-}
-function read3Times(word) {
-  clearInterval(window.readTimer);
-  let c = 0;
-  speak(word); c++;
-  window.readTimer = setInterval(() => {
-    if (c < 3) { speak(word); c++; }
-    else clearInterval(window.readTimer);
-  }, 2000);
-}
-
-// 上一頁/下一頁
-function prevWord() {
-  if (currentIdx <= 0) return;
-  currentIdx--;
-  showWord();
-}
-function nextWord() {
-  currentIdx++;
-  showWord();
-}
-
-// 顯示單字
-function showWord() {
-  clearInterval(window.readTimer);
-  const el = document.getElementById("wordContent");
-  if (filteredWords.length === 0) {
-    el.innerHTML = '<p style="color:#ef4444;">No words for this day</p>';
-    return;
-  }
-  if (currentIdx >= filteredWords.length) {
-    el.innerHTML = '<p style="color:#22c55e; font-size:24px;">🎉 Practice Complete!</p>';
-    return;
-  }
-  const w = filteredWords[currentIdx];
-  const prevDisabled = currentIdx <= 0 ? "disabled" : "";
-  const displayFileName = removeFileExtension(currentFileName);
-  el.innerHTML = `
-    <div class="meaning">💡 ${w.meaning}</div>
-    <div class="word">${w.word.toUpperCase()}</div>
-    <div class="btn-group">
-      <button class="btn-show" onclick="document.querySelector('.word').style.display='block'">👀 Show Word</button>
-      <button class="btn-read" onclick="read3Times('${w.word}')">🔊 Read 3x</button>
-      <button class="btn-prev" onclick="prevWord()" ${prevDisabled}>⬅️ Previous</button>
-      <button class="btn-next" onclick="nextWord()">➡️ Next</button>
-    </div>
-    <div class="tip">Level: ${currentLevel} | File: ${displayFileName} | Day: ${w.day} | ${currentIdx + 1}/${filteredWords.length}</div>
-  `;
-}
-
-// 綁定事件
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById("levelConfirm").onclick = () => {
-    const level = document.getElementById("levelSelect").value;
-    if (!level) { alert('Please select P1/P2!'); return; }
-    currentLevel = level;
-    loadFileListByLevel(level);
-  };
-  document.getElementById("fileConfirm").onclick = () => {
-    const file = document.getElementById("fileSelect").value;
-    loadSelectedFile(file);
-  };
-  document.getElementById("filterBtn").onclick = filterByDay;
-});
-</script>
+<!-- 引入单独的JavaScript文件 -->
+<script src="script.js"></script>
 </body>
 </html>
