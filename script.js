@@ -22,7 +22,7 @@ function removeFileExtension(filename) {
  * @returns {string} JSON文件URL
  */
 function getFileListUrl(level) {
-  return `https://raw.githubusercontent.com/ximonlam/word-review/main/data/${level}/fileList.json`;
+  return `https://raw.githubusercontent.com/vizaiweb/word-review/main/data/${level}/fileList.json`;
 }
 
 /**
@@ -32,7 +32,7 @@ function getFileListUrl(level) {
  * @returns {string} Excel文件URL
  */
 function getXlsxFileUrl(level, filename) {
-  return `https://raw.githubusercontent.com/ximonlam/word-review/main/data/${level}/${filename}`;
+  return `https://raw.githubusercontent.com/vizaiweb/word-review/main/data/${level}/${filename}`;
 }
 
 /**
