@@ -96,7 +96,7 @@ body{
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:10px;
-  margin-bottom:20px;
+  margin-bottom:15px;
 }
 .btn-group button {
   padding:12px;
@@ -115,13 +115,32 @@ body{
   cursor:not-allowed;
 }
 
+/* Show All Words Button */
+.show-all-btn {
+  padding:10px 20px;
+  font-size:16px;
+  border:none;
+  border-radius:8px;
+  background:#6366f1;
+  color:white;
+  cursor:pointer;
+  margin:10px 0;
+}
+.show-all-btn:hover {
+  background:#4f46e5;
+}
+.show-all-btn:disabled {
+  background:#94a3b8;
+  cursor:not-allowed;
+}
+
 .tip {
   font-size:14px;
   color:#64748b;
   margin-top:15px;
 }
 
-/* 底部链接区（优化样式） */
+/* 底部链接区 */
 .footer {
   max-width:600px;
   margin:20px auto 30px;
@@ -184,17 +203,20 @@ body{
     <div id="wordContent">
       <p style="color:#64748b;">Please select Level first</p>
     </div>
+    
+    <!-- Show All Words Button -->
+    <button class="show-all-btn" id="showAllBtn" disabled>📋 Show All Words</button>
   </div>
 </div>
 
-<!-- 底部链接区（链接到三个页面） -->
+<!-- 底部链接区 -->
 <div class="footer">
   <a href="about.html">About</a> | 
   <a href="privacy.html">Privacy Policy</a> | 
   <a href="disclaimer.html">Disclaimer</a>
 </div>
 
-<!-- 引入单独的JavaScript文件 -->
+<!-- 引入JavaScript -->
 <script src="script.js"></script>
 </body>
 </html>
