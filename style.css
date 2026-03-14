@@ -251,4 +251,16 @@ body {
     font-size: 16px;
     padding: 10px;
   }
+  
+  /* 可选：Day输入框禁用样式（不隐藏时的灰色效果） */
+#dayNum:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+  border-color: #ddd;
+}
+  
+/* 核心：隐藏禁用的输入框（和JS中的类对应） */
+#dayNum.disabled-hidden {
+  display: none !important;
+}
 }
