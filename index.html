@@ -121,19 +121,26 @@ body{
   margin-top:15px;
 }
 
-/* 底部链接 */
+/* 底部链接区（优化样式） */
 .footer {
+  max-width:600px;
+  margin:20px auto 30px;
+  padding:15px;
   text-align:center;
-  margin:20px 0;
   font-size:14px;
-  color:#666;
+  color:#64748b;
+  background:white;
+  border-radius:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.05);
 }
 .footer a {
   color:#3498db;
   text-decoration:none;
-  margin:0 5px;
+  margin:0 8px;
+  transition:color 0.2s;
 }
 .footer a:hover {
+  color:#2563eb;
   text-decoration:underline;
 }
 </style>
@@ -180,7 +187,7 @@ body{
   </div>
 </div>
 
-<!-- 底部链接（隐私/关于/免责） -->
+<!-- 底部链接区（链接到三个页面） -->
 <div class="footer">
   <a href="about.html">About</a> | 
   <a href="privacy.html">Privacy Policy</a> | 
