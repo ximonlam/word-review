@@ -90,13 +90,13 @@ h1{
 button{font-size:20px;padding:10px 20px;margin:8px;border:none;border-radius:8px;color:white;cursor:pointer;}
 .show-btn{background:#9b59b6;}
 .read-btn{background:#3498db;}
-.prev-btn{background:#8e44ad;} /* Previous按钮专属样式 */
+.prev-btn{background:#8e44ad;}
 .next-btn{background:#27ae60;}
 
 .tip{font-size:16px;color:#666;margin-top:10px;}
 .loading{font-size:22px;color:#3498db;margin:20px 0;}
 .error{font-size:22px;color:#e74c3c;margin:20px 0;}
-.disabled-btn{background:#cccccc;cursor:not-allowed;} /* 禁用状态样式 */
+.disabled-btn{background:#cccccc;cursor:not-allowed;}
 </style>
 </head>
 <body>
@@ -131,6 +131,12 @@ let currentIdx = 0;
 let currentFileName = "";
 const synth = window.speechSynthesis;
 
+// ====================== 工具函数：移除文件名的.xlsx后缀 ======================
+function removeFileExtension(filename) {
+  // 只移除最后的.xlsx后缀，不影响其他内容
+  return filename.replace(/\.xlsx$/i, '');
+}
+
 // ====================== 加载文件列表 ======================
 async function loadFileList() {
   const select = document.getElementById('fileSelect');
@@ -147,7 +153,8 @@ async function loadFileList() {
     files.forEach(file => {
       const option = document.createElement('option');
       option.value = file;
-      option.textContent = file;
+      // 下拉列表也显示无后缀的文件名（可选，如需保留后缀可改回file）
+      option.textContent = removeFileExtension(file);
       select.appendChild(option);
     });
   } catch (e) {
@@ -161,7 +168,7 @@ async function loadSelectedFile(fileName) {
     alert('Please select a valid file!');
     return;
   }
-  currentFileName = fileName;
+  currentFileName = fileName; // 保留完整文件名用于加载
   document.getElementById("wordContent").innerHTML = "Loading file...";
   try {
     const url = `https://raw.githubusercontent.com/ximonlam/word-review/main/${fileName}`;
@@ -230,11 +237,9 @@ function read3Times(word) {
   }, 2000);
 }
 
-// ====================== 核心新增：Previous按钮逻辑 ======================
+// ====================== Previous/Next按钮 ======================
 function prevWord() {
-  // 已经是第一个单词，不执行操作
   if (currentIdx <= 0) return;
-  
   currentIdx--;
   showWord();
 }
@@ -244,7 +249,7 @@ function nextWord() {
   showWord();
 }
 
-// ====================== 显示单词（包含Previous按钮） ======================
+// ====================== 显示单词（隐藏.xlsx后缀） ======================
 function showWord() {
   clearInterval(window.readTimer);
   const el = document.getElementById("wordContent");
@@ -260,29 +265,30 @@ function showWord() {
   }
   
   const w = filteredWords[currentIdx];
-  // 判断是否是第一个单词，决定Previous按钮是否禁用
   const prevBtnClass = currentIdx <= 0 ? "prev-btn disabled-btn" : "prev-btn";
   const prevBtnOnclick = currentIdx <= 0 ? "" : "onclick=\"prevWord()\"";
+  // 关键：使用移除后缀后的文件名显示
+  const displayFileName = removeFileExtension(currentFileName);
   
   el.innerHTML = `
     <div class="meaning">💡 ${w.meaning}</div>
     <div class="word" id="w">${w.word.toUpperCase()}</div>
     <button class="show-btn" onclick="document.getElementById('w').style.display='block'">👀 Show Word</button>
     <button class="read-btn" onclick="read3Times('${w.word}')">🔊 Read 3x</button>
-    <!-- 新增Previous按钮 -->
     <button class="${prevBtnClass}" ${prevBtnOnclick}>⬅️ Previous</button>
     <button class="next-btn" onclick="nextWord()">➡️ Next</button>
-    <div class="tip">File: ${currentFileName}  Day: ${w.day} | Current: ${currentIdx + 1}/${filteredWords.length}</div>
+    <div class="tip">File: ${displayFileName}  Day: ${w.day} | Current: ${currentIdx + 1}/${filteredWords.length}</div>
   `;
 }
 
-// ====================== 导出所有单词 ======================
+// ====================== 导出所有单词（导出页面也隐藏后缀） ======================
 function showAllWords() {
   if (allWords.length === 0) {
     alert('No words to show!');
     return;
   }
   let win = window.open("", "_blank", "width=800,height=600");
+  const displayFileName = removeFileExtension(currentFileName);
   let html = `
   <html>
   <head>
@@ -292,7 +298,7 @@ function showAllWords() {
   th,td{border:1px solid #ccc;padding:10px;text-align:center;}</style>
   </head>
   <body>
-  <h2>${currentFileName} - All Words</h2>
+  <h2>${displayFileName} - All Words</h2>
   <table>
   <tr><th>Day</th><th>Word</th><th>Meaning</th></tr>
   `;
